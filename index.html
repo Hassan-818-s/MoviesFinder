@@ -21,6 +21,15 @@
   <script>
     const apiKey = "f6bbd78cbc9ce2dd541c4e6f458a5250";
 
+    // function to slugify titles for fmoviesz
+    function slugify(title, year) {
+      return title
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, '')   // remove special chars
+        .trim()
+        .replace(/\s+/g, '-') + '-' + year;
+    }
+
     async function findMovie() {
       let query = document.getElementById("search").value.trim();
       if (!query) {
@@ -28,6 +37,7 @@
         return;
       }
 
+      // 🔹 Search TMDB for movie
       let url = `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}`;
       let res = await fetch(url);
       let data = await res.json();
@@ -36,34 +46,39 @@
 
       if (data.results && data.results.length > 0) {
         let movie = data.results[0];
-        let movieId = movie.id;
+        let year = movie.release_date ? movie.release_date.split("-")[0] : "";
 
-        // fetch trailer
-        let trailerRes = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${apiKey}`);
+        // 🔹 Get trailer from TMDB
+        let trailerRes = await fetch(`https://api.themoviedb.org/3/movie/${movie.id}/videos?api_key=${apiKey}`);
         let trailerData = await trailerRes.json();
         let trailer = trailerData.results.find(v => v.type === "Trailer" && v.site === "YouTube");
 
-        // fetch watch providers
-        let providerRes = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/watch/providers?api_key=${apiKey}`);
-        let providerData = await providerRes.json();
-        let providers = providerData.results?.PK; // use PK (Pakistan), can change to US/IN etc.
+        // 🔹 Direct Watch Online link (slug)
+        let slug = slugify(movie.title, year);
+        let watchUrl = `https://fmoviesz.to/movie/${slug}`;
+        let watchButton = `<button class="btn" onclick="window.open('${watchUrl}', '_blank')">▶ Watch Online</button>`;
 
-        // build buttons
-        let watchButton = "";
-        let downloadButton = "";
-
-        if (providers && providers.link) {
-          watchButton = `<button class="btn" onclick="window.open('${providers.link}', '_blank')">▶ Watch Online</button>`;
-          downloadButton = `<button class="btn" onclick="window.open('${providers.link}', '_blank')">⬇ Download</button>`;
-        } else {
-          // fallback if no legal providers
-          watchButton = `<button class="btn" onclick="window.open('https://www.youtube.com/results?search_query=${encodeURIComponent(movie.title)}+trailer', '_blank')">▶ Watch Online</button>`;
-          downloadButton = `<button class="btn" onclick="window.open('https://www.google.com/search?q=${encodeURIComponent(movie.title)}+download', '_blank')">⬇ Download</button>`;
+        // 🔹 Get exact YTS movie page
+        let ytsUrl = "";
+        try {
+          let ytsRes = await fetch(`https://yts.mx/api/v2/list_movies.json?query_term=${encodeURIComponent(movie.title + ' ' + year)}`);
+          let ytsData = await ytsRes.json();
+          if (ytsData.data.movie_count > 0) {
+            let ytsMovie = ytsData.data.movies[0];
+            ytsUrl = `https://yts.mx/movies/${ytsMovie.slug}`;
+          }
+        } catch (err) {
+          console.error("YTS fetch error:", err);
         }
 
+        let downloadButton = ytsUrl 
+          ? `<button class="btn" onclick="window.open('${ytsUrl}', '_blank')">⬇ Download</button>`
+          : `<button class="btn" onclick="window.open('https://yts.mx/browse-movies/${encodeURIComponent(movie.title + ' ' + year)}', '_blank')">⬇ Download</button>`;
+
+        // 🔹 Show final movie card
         document.getElementById("results").innerHTML = `
           <div class="movie">
-            <h2>${movie.title}</h2>
+            <h2>${movie.title} (${year})</h2>
             <img src="https://image.tmdb.org/t/p/w500${movie.poster_path}" alt="${movie.title}">
             <p>${movie.overview}</p>
             ${trailer ? `<iframe width="560" height="315" src="https://www.youtube.com/embed/${trailer.key}" frameborder="0" allowfullscreen></iframe>` : "<p>No trailer found</p>"}
