@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MoviesFinder</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#111; color:#fff; text-align:center; }
+    #results img { width:200px; border-radius:10px; margin:10px; }
+    .movie { margin-bottom:40px; }
+    iframe { border-radius:10px; margin-top:10px; }
+    .btn { padding:10px 20px; margin:10px; background:#ff3c00; color:#fff; border:none; border-radius:5px; cursor:pointer; }
+  </style>
+</head>
+<body>
+  <h1>🎬 MoviesFinder</h1>
+  <input type="text" id="search" placeholder="Search for a movie...">
+  <button class="btn" onclick="findMovie()">Search</button>
+  <div id="results"></div>
+
+  <script>
+    const apiKey = "f6bbd78cbc9ce2dd541c4e6f458a5250";
+
+    async function findMovie() {
+      let query = document.getElementById("search").value.trim();
+      if (!query) {
+        alert("Please enter a movie name");
+        return;
+      }
+
+      let url = `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}`;
+      let res = await fetch(url);
+      let data = await res.json();
+
+      console.log("API Response:", data); // debug
+
+      document.getElementById("results").innerHTML = "";
+
+      if (data.results && data.results.length > 0) {
+        let movie = data.results[0];
+        let movieId = movie.id;
+
+        // fetch trailer
+        let trailerRes = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${apiKey}`);
+        let trailerData = await trailerRes.json();
+        let trailer = trailerData.results.find(v => v.type === "Trailer" && v.site === "YouTube");
+
+        document.getElementById("results").innerHTML = `
+          <div class="movie">
+            <h2>${movie.title}</h2>
+            <img src="https://image.tmdb.org/t/p/w500${movie.poster_path}" alt="${movie.title}">
+            <p>${movie.overview}</p>
+            ${trailer ? `<iframe width="560" height="315" src="https://www.youtube.com/embed/${trailer.key}" frameborder="0" allowfullscreen></iframe>` : "<p>No trailer found</p>"}
+            <br>
+            <button class="btn">▶ Watch Online</button>
+            <button class="btn">⬇ Download</button>
+          </div>
+        `;
+      } else {
+        document.getElementById("results").innerHTML = "<p>No results found</p>";
+      }
+    }
+  </script>
+</body>
+</html>
