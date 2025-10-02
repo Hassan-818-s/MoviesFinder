@@ -32,8 +32,6 @@
       let res = await fetch(url);
       let data = await res.json();
 
-      console.log("API Response:", data); // debug
-
       document.getElementById("results").innerHTML = "";
 
       if (data.results && data.results.length > 0) {
@@ -45,6 +43,24 @@
         let trailerData = await trailerRes.json();
         let trailer = trailerData.results.find(v => v.type === "Trailer" && v.site === "YouTube");
 
+        // fetch watch providers
+        let providerRes = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/watch/providers?api_key=${apiKey}`);
+        let providerData = await providerRes.json();
+        let providers = providerData.results?.PK; // use PK (Pakistan), can change to US/IN etc.
+
+        // build buttons
+        let watchButton = "";
+        let downloadButton = "";
+
+        if (providers && providers.link) {
+          watchButton = `<button class="btn" onclick="window.open('${providers.link}', '_blank')">▶ Watch Online</button>`;
+          downloadButton = `<button class="btn" onclick="window.open('${providers.link}', '_blank')">⬇ Download</button>`;
+        } else {
+          // fallback if no legal providers
+          watchButton = `<button class="btn" onclick="window.open('https://www.youtube.com/results?search_query=${encodeURIComponent(movie.title)}+trailer', '_blank')">▶ Watch Online</button>`;
+          downloadButton = `<button class="btn" onclick="window.open('https://www.google.com/search?q=${encodeURIComponent(movie.title)}+download', '_blank')">⬇ Download</button>`;
+        }
+
         document.getElementById("results").innerHTML = `
           <div class="movie">
             <h2>${movie.title}</h2>
@@ -52,8 +68,8 @@
             <p>${movie.overview}</p>
             ${trailer ? `<iframe width="560" height="315" src="https://www.youtube.com/embed/${trailer.key}" frameborder="0" allowfullscreen></iframe>` : "<p>No trailer found</p>"}
             <br>
-            <button class="btn">▶ Watch Online</button>
-            <button class="btn">⬇ Download</button>
+            ${watchButton}
+            ${downloadButton}
           </div>
         `;
       } else {
@@ -63,3 +79,4 @@
   </script>
 </body>
 </html>
+
